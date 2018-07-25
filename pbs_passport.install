@@ -1,0 +1,211 @@
+<?php
+
+/**
+ * @file
+ * Install, update, and uninstall functions for PBS Passport.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function pbs_passport_schema() {
+  $schema['pbs_passport_user'] = array(
+    'description' => 'PBS Passport user data.',
+    'fields' => array(
+      'uid' => array(
+        'description' => 'Drupal UID',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'pid' => array(
+        'description' => 'PBS PID',
+        'type' => 'varchar',
+        'length' => '64',
+        'not null' => FALSE,
+      ),
+      'membership_id' => array(
+        'description' => 'MVault ID',
+        'type' => 'varchar',
+        'length' => '36',
+        'not null' => FALSE,
+      ),
+      'email' => array(
+        'description' => 'User email address',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'first_name' => array(
+        'description' => 'User first name',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'last_name' => array(
+        'description' => 'User last name',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'vppa_accepted' => array(
+        'description' => 'User VPPA accepted status',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => FALSE,
+      ),
+      'membership_type' => array(
+        'description' => 'MVault membership',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'passport_state' => array(
+        'description' => 'Overall Passport state indicator.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'passport_activated' => array(
+        'description' => 'Passport activated status',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => FALSE,
+      ),
+      'passport_start_date' => array(
+        'description' => 'Passport start date',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'passport_expire_date' => array(
+        'description' => 'Passport expire date',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'passport_grace_date' => array(
+        'description' => 'Passport grace period expire date',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ),
+      'login_provider' => array(
+        'description' => 'The authentication service used by this account',
+        'type' => 'varchar',
+        'length' => '50',
+        'not null' => FALSE,
+      ),
+      'thumbnail_url' => array(
+        'description' => 'URL for a user thumbnail fron the login provider.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('uid'),
+    'indexes' => array(
+      'membership_id' => array('membership_id'),
+      'pid' => array('pid'),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function pbs_passport_install() {
+  // Establish default module variables.
+  $defaults = array();
+
+  $defaults['pbs_passport_lookup_email_'
+    . PBS_PASSPORT_MEMBERSHIP_ACTIVATED] = <<<EOD
+Good news! Your [pbs_passport:station:short_common_name] Passport membership is already activated!
+
+Account details -
+
+Email address: [pbs_passport:membership:email]
+First name: [pbs_passport:membership:first_name]
+Last name: [pbs_passport:membership:last_name]
+Activation date: [pbs_passport:membership:activation_date]
+Expiration date: [pbs_passport:membership:expire_date]
+Login provider: [pbs_passport:membership:login_provider]
+
+[pbs_passport:station:full_common_name]
+[pbs_passport:station:tag_line]
+EOD;
+
+  $defaults['pbs_passport_lookup_email_'
+    . PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED] = <<<EOD
+Your [pbs_passport:station:short_common_name] Passport membership is available, but has not been activated. The membership must be activated before it can be used to access [pbs_passport:station:short_common_name] Passport content. Your activation URL and token are provided below:
+
+URL: [pbs_passport:membership:activation_url]
+Token: [pbs_passport:membership:token]
+
+Account details -
+
+Email address: [pbs_passport:membership:email]
+First name: [pbs_passport:membership:first_name]
+Last name: [pbs_passport:membership:last_name]
+
+[pbs_passport:station:full_common_name]
+[pbs_passport:station:tag_line]
+EOD;
+
+  $defaults['pbs_passport_lookup_email_'
+  . PBS_PASSPORT_MEMBERSHIP_GRACE_PERIOD] = <<<EOD
+Your [pbs_passport:station:short_common_name] Passport membership is activated, but expired. The account is currently in a grace period that will expire [pbs_passport:membership:grace_period].
+
+Donate before the grace period expires to keep your access to [pbs_passport:station:short_common_name] Passport content -
+
+[pbs_passport:station:donate_url]
+
+Account details -
+
+Email address: [pbs_passport:membership:email]
+First name: [pbs_passport:membership:first_name]
+Last name: [pbs_passport:membership:last_name]
+Activation date: [pbs_passport:membership:activation_date]
+Expiration date: [pbs_passport:membership:expire_date]
+Login provider: [pbs_passport:membership:login_provider]
+
+[pbs_passport:station:full_common_name]
+[pbs_passport:station:tag_line]
+EOD;
+
+  $defaults['pbs_passport_lookup_email_'
+  . PBS_PASSPORT_MEMBERSHIP_EXPIRED] = <<<EOD
+Your [pbs_passport:station:short_common_name] Passport membership has expired as of [pbs_passport:membership:expire_date]. Donate now to regain access to [pbs_passport:station:short_common_name] Passport content -
+
+[pbs_passport:station:donate_url]
+
+Account details -
+
+Email address: [pbs_passport:membership:email]
+First name: [pbs_passport:membership:first_name]
+Last name: [pbs_passport:membership:last_name]
+
+[pbs_passport:station:full_common_name]
+[pbs_passport:station:tag_line]
+EOD;
+
+  $defaults['pbs_passport_lookup_email_'
+  . PBS_PASSPORT_MEMBERSHIP_UNKNOWN] = <<<EOD
+Please contact us for details about your [pbs_passport:station:short_common_name] Passport membership.
+
+Email: [pbs_passport:station:email]
+Phone: [pbs_passport:station:telephone]
+Website: [pbs_passport:station:website_url]
+
+[pbs_passport:station:full_common_name]
+[pbs_passport:station:tag_line]
+EOD;
+
+  foreach ($defaults as $variable => $default) {
+    if (variable_get($variable) === NULL) {
+      variable_set($variable, $default);
+    }
+  }
+}

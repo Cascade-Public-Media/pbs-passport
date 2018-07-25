@@ -1,0 +1,12 @@
+name = PBS Passport
+description = Provides PBS Passport (OAuth 2) authentication.
+core = 7.x
+package = PBS
+
+dependencies[] = views
+dependencies[] = token
+
+configure = admin/config/people/pbs-passport
+
+files[] = includes/views/handlers/pbs_passport_handler_passport_state.inc
+files[] = pbs_passport.test

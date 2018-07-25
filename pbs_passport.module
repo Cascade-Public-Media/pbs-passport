@@ -1,0 +1,1108 @@
+<?php
+
+/**
+ * @file
+ * PBS Passport
+ *
+ * The core PBS Passport API.
+ */
+
+global $base_url;
+
+define('PBS_PASSPORT_OAUTH2_BASEURL', 'https://account.pbs.org/oauth2/');
+define(
+  'PBS_PASSPORT_ACTIVATION_BASEURL',
+  'https://www.pbs.org/passport/activate/'
+);
+define('PBS_PASSPORT_REDIRECT_URI', $base_url . '/pbs-passport/auth');
+
+define('PBS_PASSPORT_MEMBERSHIP_ACTIVATED', 10);
+define('PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED', 20);
+define('PBS_PASSPORT_MEMBERSHIP_GRACE_PERIOD', 30);
+define('PBS_PASSPORT_MEMBERSHIP_EXPIRED', 90);
+define('PBS_PASSPORT_MEMBERSHIP_UNKNOWN', 100);
+
+/**
+ * Implements hook_permission().
+ */
+function pbs_passport_permission() {
+  return array(
+    'administer pbs passport' => array(
+      'title' => t('Administer PBS Passport settings'),
+    ),
+    'view pbs passport debug data' => array(
+      'title' => t('View PBS Passport debug data'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function pbs_passport_menu() {
+  $items = array();
+
+  // Administration pages.
+
+  $items['admin/config/people/pbs-passport'] = array(
+    'title' => 'PBS Passport',
+    'description' => 'PBS Passport administration pages.',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('access administration pages'),
+    'file path' => drupal_get_path('module', 'system'),
+    'file' => 'system.admin.inc',
+  );
+
+  $items['admin/config/people/pbs-passport/settings'] = array(
+    'title' => 'General Settings',
+    'description' => 'General settings for the PBS Passport module.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pbs_passport_settings_general'),
+    'access arguments' => array('administer pbs passport'),
+    'file' => 'pbs_passport.admin.inc',
+    'weight' => -10,
+  );
+
+  $items['admin/config/people/pbs-passport/oauth'] = array(
+    'title' => 'OAuth2 Settings',
+    'description' => 'OAuth2 API settings for PBS account authorization.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pbs_passport_settings_oauth'),
+    'access arguments' => array('administer pbs passport'),
+    'file' => 'pbs_passport.admin.inc',
+    'weight' => -8,
+  );
+
+  $items['admin/config/people/pbs-passport/mvault'] = array(
+    'title' => 'MVault Settings',
+    'description' => 'Membership Vault API settings for Passport data access.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pbs_passport_settings_mvault'),
+    'access arguments' => array('administer pbs passport'),
+    'file' => 'pbs_passport.admin.inc',
+    'weight' => -6,
+  );
+
+  $items['admin/config/people/pbs-passport/email-templates'] = array(
+    'title' => 'Email Templates',
+    'description' => 'Templates for emails sent from this module.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pbs_passport_settings_email_templates'),
+    'access arguments' => array('administer pbs passport'),
+    'file' => 'pbs_passport.admin.inc',
+    'weight' => -4,
+  );
+
+  // Public pages.
+
+  $items['pbs-passport/login'] = array(
+    'title' => 'Sign In',
+    'description' => 'PBS account login page.',
+    'page callback' => 'pbs_passport_login',
+    'access arguments' => array('access content'),
+    'type' => MENU_SUGGESTED_ITEM,
+  );
+
+  $items['pbs-passport/auth'] = array(
+    'title' => 'PBS OAuth2 Endpoint',
+    'description' => 'OAuth2 endpoint to receive validation code.',
+    'page callback' => 'pbs_passport_authenticate',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['pbs-passport/lookup'] = array(
+    'title' => 'Passport Membership Lookup',
+    'description' => 'A Passport membership lookup form.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pbs_passport_lookup_form'),
+    'access arguments' => array('access content'),
+    'type' => MENU_SUGGESTED_ITEM,
+  );
+
+  $items['pbs-passport/debug'] = array(
+    'title' => 'User Data Debug',
+    'description' => 'Print out of PBS API data received during
+      authentication.',
+    'page callback' => 'pbs_passport_user_debug',
+    'access arguments' => array('view pbs passport debug data'),
+    'type' => MENU_SUGGESTED_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function pbs_passport_views_api() {
+  return array(
+    'api' => 3.0,
+    'path' => drupal_get_path('module', 'pbs_passport') . '/includes/views',
+  );
+}
+
+/**
+ * Implements hook_views_default_views().
+ */
+function pbs_passport_views_default_views() {
+  $path = './' . drupal_get_path('module', 'pbs_passport')
+    . '/includes/views/default_views/*.view.inc';
+  $views = array();
+  foreach (glob($path) as $views_filename) {
+    require_once $views_filename;
+  }
+  return $views;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pbs_passport_theme() {
+  $module_path = drupal_get_path('module', 'pbs_passport');
+  $path = $module_path . '/theme';
+  return array(
+    'pbs_passport_login' => array(
+      'template' => 'pbs-passport-login',
+      'variables' => array(
+        'login_urls' => array(),
+        'station' => array()
+      ),
+      'file' => 'theme.inc',
+      'path' => $path,
+    ),
+    'pbs_passport_lookup_form'  => array(
+      'render element' => 'form',
+      'template' => 'pbs-passport-lookup-form',
+      'file' => 'theme.inc',
+      'path' => $path,
+    ),
+    'pbs_passport_user_debug' => array(
+      'template' => 'pbs-passport-user-debug',
+      'variables' => array(
+        'session_data' => NULL,
+        'db_data' => NULL
+      ),
+      'file' => 'theme.inc',
+      'path' => $path,
+    ),
+  );
+}
+
+/**
+ * Implements hook_token_info().
+ *
+ * @return array $info
+ */
+function pbs_passport_token_info() {
+  $info['types'] = array(
+    'pbs_passport' => array(
+      'name' => t('PBS Passport'),
+      'description' => t('Tokens generated by the PBS Passport module.')
+    ),
+    'pbs_passport_station' => array(
+      'name' => t('Station'),
+      'needs-data' => 'pbs_passport'
+    ),
+    'pbs_passport_membership' => array(
+      'name' => t('Membership'),
+      'needs-data' => 'pbs_passport'
+    )
+  );
+
+  $info['tokens']['pbs_passport']['station'] = array(
+    'name' => t('Station'),
+    'type' => 'pbs_passport_station',
+  );
+  $info['tokens']['pbs_passport_station'] = array(
+    'address_line_1' => array(
+      'name' => t('Address: Line 1'),
+      'description' => t('Address line 1.')
+    ),
+    'address_line_2' => array(
+      'name' => t('Address: Line 2'),
+      'description' => t('Address line 2.')
+    ),
+    'call_sign' => array(
+      'name' => t('Call sign'),
+      'description' => t('Call sign (upper case letters).')
+    ),
+    'city' => array(
+      'name' => t('Address: City'),
+      'description' => t('Address city.')
+    ),
+    'country_code' => array(
+      'name' => t('Address: Country code'),
+      'description' => t('Address country code.')
+    ),
+    'donate_url' => array(
+      'name' => t('Donate URL'),
+      'description' => t('Full URL for donation form.')
+    ),
+    'email' => array(
+      'name' => t('Email address'),
+      'description' => t('General station email address.')
+    ),
+    'facebook_url' => array(
+      'name' => t('Facebook URL'),
+      'description' => t('Facebook URL.')
+    ),
+    'fax' => array(
+      'name' => t('Fax'),
+      'description' => t('General station fax number.')
+    ),
+    'full_common_name' => array(
+      'name' => t('Full name'),
+      'description' => t('Full station name.')
+    ),
+    'short_common_name' => array(
+      'name' => t('Short name'),
+      'description' => t('Short station name.')
+    ),
+    'state' => array(
+      'name' => t('Address: State'),
+      'description' => t('Address state (abbreviation).')
+    ),
+    'tag_line' => array(
+      'name' => t('Tag line'),
+      'description' => t('Tag line.')
+    ),
+    'telephone' => array(
+      'name' => t('Telephone'),
+      'description' => t('General station telephone number.')
+    ),
+    'timezone' => array(
+      'name' => t('Timezone'),
+      'description' => t('Local timezone.')
+    ),
+    'twitter_url' => array(
+      'name' => t('Twitter URL'),
+      'description' => t('Twitter URL.')
+    ),
+    'website_url' => array(
+      'name' => t('Website URL'),
+      'description' => t('Website URL.')
+    ),
+    'zip_code' => array(
+      'name' => t('Address: Zip code'),
+      'description' => t('Address zip code.')
+    ),
+  );
+
+  $info['tokens']['pbs_passport']['membership'] = array(
+    'name' => t('Membership'),
+    'type' => 'pbs_passport_membership',
+  );
+  $info['tokens']['pbs_passport_membership'] = array(
+    'activation_date' => array(
+      'name' => t('Activation date'),
+      'description' => t('Date/time of activation (if activated).')
+    ),
+    'activation_url' => array(
+      'name' => t('Activation URL'),
+      'description' => t('Membership activation URL.')
+    ),
+    'email' => array(
+      'name' => t('Email address'),
+      'description' => t('Account holder email address.')
+    ),
+    'expire_date' => array(
+      'name' => t('Expiration date'),
+      'description' => t('Date/time activated membership will expire.')
+    ),
+    'first_name' => array(
+      'name' => t('First name'),
+      'description' => t('Account holder first name.')
+    ),
+    'grace_period' => array(
+      'name' => t('Grace period expire'),
+      'description' => t('Expiration date/time of the grace period.')
+    ),
+    'last_name' => array(
+      'name' => t('Last name'),
+      'description' => t('Account holder last name.')
+    ),
+    'login_provider' => array(
+      'name' => t('Login provider'),
+      'description' => t('OAuth authentication service (Google, Facebook,
+        or PBS.')
+    ),
+    'state' => array(
+      'name' => t('Membership state'),
+      'description' => t('Current state of a membership.')
+    ),
+    'token' => array(
+      'name' => t('Activation token'),
+      'description' => t('Membership activation token sequence.')
+    ),
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_tokens().
+ *
+ * @param string $type
+ * @param array $tokens
+ * @param array $data
+ * @param array $options
+ *
+ * @return array $replacements
+ */
+function pbs_passport_tokens($type, $tokens, $data = [], $options = []) {
+  $replacements = array();
+
+  if ($type == 'pbs_passport') {
+    foreach ($tokens as $name => $original) {
+      list($group, $key) = explode(':', $name);
+
+      // All PBS Passport module tokens are in groups.
+      if (empty($group) || empty($key)) {
+        continue;
+      }
+
+      // Change membership state constant value to a human-readable string.
+      if ($group == 'membership' && $key == 'state') {
+        $replacements[$original] = pbs_passport_state_to_string(
+          $data[$group][$key]
+        );
+      }
+      elseif ($group == 'membership' && $key == 'login_provider') {
+        $login_provider = t('Unknown');
+        if (isset($data['login_provider'])) {
+          $login_provider = $data['login_provider'];
+        }
+        elseif (isset($data['membership']['pbs_profile']['login_provider'])) {
+          $login_provider = $data['membership']['pbs_profile']['login_provider'];
+        }
+        $replacements[$original] = $login_provider;
+      }
+      else {
+        // Most keys are one-to-one relationship.
+        $replacements[$original] = $data[$group][$key];
+      }
+    }
+  }
+
+  return $replacements;
+}
+
+/**
+ * Render Passport login page.
+ *
+ * @return string $html
+ *   Themed page HTML for anonymous users.
+ *
+ * @see theme/pbs-passport-login.tpl.php
+ *
+ * @throws \Exception
+ */
+function pbs_passport_login() {
+  $html = '';
+  if (user_is_anonymous()) {
+    $_SESSION['pbs_passport_login'] = [];
+
+    // Preserve any query parameters.
+    $query = drupal_get_query_parameters();
+    $_SESSION['pbs_passport_login']['query'] = array();
+    foreach ($query as $key => $value) {
+      $_SESSION['pbs_passport_login']['query'][$key] = $value;
+    }
+
+    // Prepare state parameter
+    $_SESSION['pbs_passport_login']['state'] = drupal_random_key();
+    $html = theme('pbs_passport_login', array(
+      'state' => $_SESSION['pbs_passport_login']['state']
+    ));
+  }
+  else {
+    drupal_goto('/user', array('query' => drupal_get_query_parameters()));
+  }
+  return $html;
+}
+
+/**
+ * Print PBS data for session.
+ *
+ * @return string $html
+ *   Themed page HTML.
+ *
+ * @throws \Exception
+ */
+function pbs_passport_user_debug() {
+  $html = theme('pbs_passport_user_debug');
+  return $html;
+}
+
+/**
+ * Authenticate with an OAuth2 code.
+ *
+ * This function evaluates the `code` and `state` URL parameters per OAuth spec.
+ * See @url https://auth0.com/docs/protocols/oauth2/oauth-state for more info.
+ *
+ * @see pbs_passport_menu()
+ * @see pbs_passport_login()
+ */
+function pbs_passport_authenticate() {
+  $path = '/';
+
+  if (isset($_GET['code']) && isset($_GET['state'])) {
+    // Verify the state parameter.
+    if (!isset($_SESSION['pbs_passport_login']['state'])
+      || $_SESSION['pbs_passport_login']['state'] != $_GET['state']) {
+      watchdog(
+        'pbs_passport',
+        'OAuth2 state mismatch. Potential CSRF attempt! @session_state
+          != @get_state',
+        [
+          '@session_state' => $_SESSION['pbs_passport_login']['state'],
+          '@get_state' => $_GET['state'],
+        ],
+        WATCHDOG_ALERT
+      );
+    }
+    else {
+      if (user_is_anonymous()) {
+        // Re-populate query parameters. This helps other hook_user_login
+        // implementation that rely on parameters.
+        foreach ($_SESSION['pbs_passport_login']['query'] as $key => $value) {
+          $_GET[$key] = $value;
+        }
+        unset($_SESSION['pbs_passport_login']);
+
+        pbs_passport_oauth2_callback($_GET['code']);
+
+        if (isset($_GET['destination'])) {
+          $path = $_GET['destination'];
+        }
+      }
+    }
+  }
+
+  drupal_goto($path);
+  exit;
+}
+
+/**
+ * Implements hook_user_login().
+ *
+ * @param array $edit
+ *   The array of form values submitted by the user.
+ * @param object $account
+ *   The user object on which the operation was just performed.
+ */
+function pbs_passport_user_login(&$edit, $account) {
+  $session = &$_SESSION['pbs_passport'];
+
+  // Load user membership data
+  $client = pbs_passport_get_mvault_client();
+  $response = $client->get_membership_by_email($account->mail);
+  if ($response) {
+    $session['membership'] = $response[0];
+
+    // Pair PBS Account with Membership ("Activate")
+    // If user logged in with OAuth & user has membership & PBS account is not
+    // linked.
+    if (!empty($session['user']['pid'])
+      && !empty($session['membership']['membership_id'])
+      && (empty($session['membership']['pbs_profile'])
+        || $session['membership']['pbs_profile']['UID'] != $session['user']['pid']
+      )) {
+      $client->activate(
+        $session['membership']['membership_id'],
+        $session['user']['pid'],
+        FALSE
+      );
+    }
+  }
+}
+
+/**
+ * Implements hook_user_load().
+ *
+ * Add cached PBS/Passport account data to user object.
+ *
+ * @param array $users
+ *   Fully loaded user objects keyed by UID.
+ */
+function pbs_passport_user_load($users) {
+  try {
+    $results = db_select('pbs_passport_user', 'ppu')
+      ->fields('ppu')
+      ->condition('uid', array_keys($users), 'IN')
+      ->execute();
+
+    foreach ($results as $result) {
+      $users[$result->uid]->pbs_passport = $result;
+    }
+  }
+  catch (Exception $e) {
+    watchdog_exception('pbs_passport', $e);
+  }
+}
+
+/**
+ * Implements hook_user_delete().
+ *
+ * Remove cached PBS/Passport account data from database.
+ *
+ * @param object $account
+ *   The fully-loaded user object for the account being deleted.
+ */
+function pbs_passport_user_delete($account) {
+  try {
+    db_delete('pbs_passport_user')
+      ->condition('uid', $account->uid)
+      ->execute();
+  }
+  catch (Exception $e) {
+    watchdog_exception('pbs_passport', $e);
+  }
+}
+
+/**
+ * Authenticate OAuth login and log user in to Drupal or create account.
+ *
+ * @param string $code
+ *   OAuth grant code.
+ */
+function pbs_passport_oauth2_callback($code) {
+  $_SESSION['pbs_passport'] = ['token' => [], 'user' => [], 'membership' => []];
+
+  $client = pbs_passport_get_laas_client();
+  $pbs_user = $client->authenticate($code);
+
+  // Successful OAuth
+  if (!empty($pbs_user['email'])) {
+    $email = $pbs_user['email'];
+    $user = user_load_by_mail($email);
+
+    // Create Drupal account if email is not found in existing accounts.
+    if (!$user) {
+
+      // Generate unique user name.
+      $name = trim(drupal_substr($email, 0, strpos($email, '@')));
+      while (user_load_by_name($name) && empty(user_validate_name($name))) {
+        $name .= rand(0, 9);
+      }
+
+      $edit = [
+        'name' => $name,
+        'mail' => $email,
+        'init' => $email,
+        'pass' => user_password(),
+        'roles' => [DRUPAL_AUTHENTICATED_RID => 1],
+        'status' => 1
+      ];
+
+      drupal_alter('pbs_passport_user_presave', $edit, $pbs_user);
+
+      try {
+        $user = user_save(NULL, $edit);
+
+        drupal_alter('pbs_passport_user_insert', $user, $pbs_user);
+
+        watchdog(
+          'pbs_passport',
+          'New user @user (@email) created during PBS authentication.',
+          ['@user' => $user->name, '@email' => $user->mail],
+          WATCHDOG_INFO
+        );
+      }
+      catch (Exception $e) {
+        // The user module will log the actual exception.
+        watchdog(
+          'pbs_passport',
+          'Failed to create Drupal user for @email during authentication.',
+          ['@email' => $email],
+          WATCHDOG_CRITICAL
+        );
+      }
+    }
+
+    // Log user in.
+    if (isset($user) && !empty($user)) {
+      module_invoke_all('pbs_passport_user_login', $user, $pbs_user);
+      $form_state = array();
+      $form_state['uid'] = $user->uid;
+      user_login_submit(array(), $form_state);
+      pbs_passport_user_data_update($user, $_SESSION['pbs_passport']);
+    }
+
+  }
+}
+
+/**
+ * Update PBS user data locally.
+ *
+ * - Caches important data to the `pbs_passport_user` table.
+ * - Updates the Drupal account picture, if applicable.
+ *
+ * @param object $user
+ *   Fully loaded Drupal user object.
+ *
+ * @param array $data
+ *   PBS account/membership data formatted from OAuth2 authentication.
+ *    - token: PBS authentication token data. (unused)
+ *    - user: PBS user data.
+ *    - membership: PBS Passport membership data.
+ *
+ * @return boolean
+ *   FALSE if there are any DB errors, TRUE otherwise.
+ *
+ * @see pbs_passport_oauth2_callback()
+ */
+function pbs_passport_user_data_update($user, $data) {
+  $fields = [];
+
+  if (isset($data['user']) && !empty($data['user'])) {
+    $fields['pid'] = $data['user']['pid'];
+    $fields['email'] = $data['user']['email'];
+    $fields['first_name'] = $data['user']['first_name'];
+    $fields['last_name'] = $data['user']['last_name'];
+    $fields['thumbnail_url'] = $data['user']['thumbnail_URL'];
+    $fields['vppa_accepted'] = (int) $data['user']['vppa']['vppa_accepted'];
+    // Set a default login provider. The regular login provider field is only
+    // provided for users with a Passport membership.
+    $fields['login_provider'] = 'PBS';
+  }
+
+  if (isset($data['membership']) && !empty($data['membership'])) {
+    $fields['membership_id'] = $data['membership']['membership_id'];
+    $fields['membership_type'] = $data['membership']['offer'];
+    $fields['passport_state'] = $data['membership']['state'];
+    $fields['passport_activated'] = (int) $data['membership']['current_state']['has_access'];
+    if (!empty($data['membership']['activation_date'])) {
+      $fields['passport_start_date'] = strtotime(
+        $data['membership']['activation_date']
+      );
+    }
+    if (!empty($data['membership']['expire_date'])) {
+      $fields['passport_expire_date'] = strtotime(
+        $data['membership']['expire_date']
+      );
+    }
+    if (!empty($data['membership']['grace_period'])) {
+      $fields['passport_grace_date'] = strtotime(
+        $data['membership']['grace_period']
+      );
+    }
+    if (!empty($data['membership']['pbs_profile'])) {
+      $fields['login_provider'] = $data['membership']['pbs_profile']['login_provider'];
+    }
+  }
+
+  // Check for and update account picture.
+  $thumbnail_url = NULL;
+  if (isset($user->pbs_passport)) {
+    $thumbnail_url = $user->pbs_passport->thumbnail_url;
+  }
+  if ($thumbnail_url != $fields['thumbnail_url']) {
+    pbs_passport_update_account_picture($user, $fields['thumbnail_url']);
+  }
+
+  // Update local database cache.
+  if (!empty($fields)) {
+    try {
+      db_merge('pbs_passport_user')
+        ->key(array('uid' => $user->uid))
+        ->fields($fields)
+        ->execute();
+    }
+    catch (Exception $e) {
+      watchdog_exception('pbs_passport', $e);
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+/**
+ * Update a Drupal user's picture based on a remote resource.
+ *
+ * @param object $account
+ *   Fully loaded Drupal user object.
+ *
+ * @param mixed $uri
+ *   A string URI or null if the account picture is to be cleared.
+ *
+ * @return bool
+ */
+function pbs_passport_update_account_picture($account, $uri) {
+  $edit = array();
+
+  if (empty($uri) && !empty($account->picture)) {
+    $edit['picture_delete'] = TRUE;
+    $edit['picture'] = NULL;
+  }
+  else {
+    $uri_parts = drupal_parse_url($uri);
+
+    // Increase the size of retrieved images from Google (using "sz" parameter).
+    if (isset($uri_parts['query']['sz'])) {
+      $uri_parts['query']['sz'] = 200;
+      $uri = url($uri_parts['path'], [
+        'absolute' => TRUE,
+        'query' => $uri_parts['query']
+      ]);
+    }
+
+    // Increase the size of retrieved images from Facebook Graph.
+    // @see https://developers.facebook.com/docs/graph-api/reference/user/picture/
+    if (isset($uri_parts['query']['type'])) {
+      $uri_parts['query']['type'] = 'large';
+      $uri = url($uri_parts['path'], [
+        'absolute' => TRUE,
+        'query' => $uri_parts['query']
+      ]);
+    }
+
+    $download_loc = tempnam(sys_get_temp_dir(), 'pbs_passport_avatar_');
+    if (valid_url($uri, TRUE) && copy($uri, $download_loc)) {
+      $info = image_get_info($download_loc);
+      if (!$info) {
+        watchdog(
+          'pbs_passport',
+          'Thumbnail does not appear to be an image: @uri',
+          ['@uri' => $uri],
+          WATCHDOG_WARNING
+        );
+        drupal_unlink($download_loc);
+        return FALSE;
+      }
+
+      // Add the appropriate file extension. Drupal requires this in order for
+      // file_move to maintain the extension.
+      $temp_loc = sys_get_temp_dir() . '/'
+        . trim(drupal_basename($download_loc), '.')
+        . '.' . $info['extension'];
+      rename($download_loc, $temp_loc);
+
+      $file = new stdClass();
+      $file->uid = $account->uid;
+      $file->status = FILE_STATUS_PERMANENT;
+      $file->filename = drupal_basename($temp_loc);
+      $file->uri = $temp_loc;
+      $file->filemime = $info['mime_type'];
+      $file->filesize = $info['file_size'];
+
+      $dest = 'public://pbs_passport/avatars';
+      file_prepare_directory($dest, FILE_CREATE_DIRECTORY);
+      $file = file_move($file, $dest);
+
+      if (!$file) {
+        watchdog(
+          'pbs_passport',
+          'User account image file save failed. Check log messages.',
+          [],
+          WATCHDOG_WARNING
+        );
+        drupal_unlink($temp_loc);
+        return FALSE;
+      }
+
+      $edit['picture'] = $file;
+    }
+  }
+
+  try {
+    user_save($account, $edit);
+  }
+  catch (Exception $e) {
+    watchdog(
+      'pbs_passport',
+      'User save failed during account picture update. Check log for details.',
+      [],
+      WATCHDOG_WARNING
+    );
+  }
+
+  return TRUE;
+}
+
+/**
+ * Membership Vault client.
+ *
+ * @param null|string $environment
+ *  (optional) One of 'qa' or 'prod'.
+ * @param null|string $key
+ *  (optional) The API key.
+ * @param null|string $secret
+ *  (optional) The API secret.
+ *
+ * @return PbsMvaultClient $client
+ *
+ * @see PbsMvaultClient()
+ */
+function pbs_passport_get_mvault_client($environment = NULL, $key = NULL, $secret = NULL) {
+  static $client;
+
+  if (isset($client)) {
+    return $client;
+  }
+
+  module_load_include('inc', 'pbs_passport', 'classes/PbsMvaultClient');
+
+  if (empty($environment)) {
+    $environment = variable_get('pbs_passport_endpoint', 'qa');
+  }
+  if (empty($key)) {
+    $key = variable_get('pbs_passport_key_' . $environment);
+  }
+  if (empty($secret)) {
+    $secret = variable_get('pbs_passport_secret_' . $environment);
+  }
+  $station_id = variable_get('pbs_passport_station_id');
+
+  $client = new PbsMvaultClient($key, $secret, $station_id, $environment);
+
+  return $client;
+}
+
+/**
+ * OAuth2 client.
+ *
+ * @return PbsLaasClient $client
+ *
+ * @see PbsLaasClient()
+ */
+function pbs_passport_get_laas_client() {
+  module_load_include('inc', 'pbs_passport', 'classes/PbsLaasClient');
+
+  $args = array(
+    'client_id' => variable_get('pbs_passport_oauth_client_id'),
+    'client_secret' => variable_get('pbs_passport_oauth_client_secret'),
+    'oauthroot' => PBS_PASSPORT_OAUTH2_BASEURL,
+    'redirect_uri' => PBS_PASSPORT_REDIRECT_URI,
+  );
+
+  $client = new PbsLaasClient($args);
+
+  return $client;
+}
+
+/**
+ * Get station data from PBS Station Manager Public API.
+ *
+ * If neither parameter is provided, system configuration will be used. The API
+ * response will be cached for (at least) 24 hours.
+ *
+ * @param null $id
+ *  (optional) Station ID.
+ * @param null $callsign
+ *  (optional) Station call sign.
+ *
+ * @return bool|array
+ *   An array of station data if the station is found, an empty array if it is
+ *   not, or FALSE if the ID or Call Sign is not provided.
+ *
+ * @url https://docs.pbs.org/display/SM/Station+Manager+Public+API
+ */
+function pbs_passport_get_station_data($id = NULL, $callsign = NULL) {
+  $data = &drupal_static(__FUNCTION__);
+  if (empty($data)) {
+    $cid = 'pbs_passport:station';
+    $use_cache = FALSE;
+    $data = FALSE;
+    $base_url = 'https://station.services.pbs.org/api/public/v1/stations/';
+
+    // Load module settings values if neither key is provided.
+    if (empty($id) && empty($callsign)) {
+      $id = variable_get('pbs_passport_station_id');
+      $callsign = variable_get('pbs_passport_callsign');
+      $use_cache = TRUE;
+    }
+
+    if ($use_cache && $cache = cache_get($cid)) {
+      $data = $cache->data;
+    }
+    else {
+      if (!empty($id)) {
+        $response = drupal_http_request($base_url . '?id=' . $id);
+      }
+      elseif (!empty($callsign)) {
+        $response = drupal_http_request($base_url . '?call_sign=' . $callsign);
+      }
+
+      if (isset($response) && isset($response->data) && !empty($response->data)) {
+        $data = array();
+        $response = json_decode($response->data, TRUE);
+        if (!empty($response['data'])) {
+          $data = $response['data'][0];
+          // Flatten the "attributes" data on to the main array.
+          $attributes = $data['attributes'];
+          $data = array_merge($data, $attributes);
+        }
+      }
+      cache_set($cid, $data, 'cache', time() + 86400);
+    }
+  }
+  return $data;
+}
+
+/**
+ * PBS Passport membership lookup form.
+ *
+ * @param array $form
+ * @param array $form_state
+ *
+ * @return array $form
+ *
+ * @see template_preprocess_pbs_passport_lookup_form()
+ * @see pbs_passport_lookup_form_validate()
+ * @see pbs_passport_lookup_form_submit()
+ */
+function pbs_passport_lookup_form($form, &$form_state) {
+  $station = pbs_passport_get_station_data();
+  $form['mail'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email address'),
+    '#description' => t('Please enter the email address you provided when
+      becoming a @station Passport member.', array(
+        '@station' => $station['short_common_name']
+    )),
+    '#required' => TRUE,
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Look up membership'),
+  );
+
+  return $form;
+}
+
+/**
+ * Validation handler for pbs_passport_lookup_form().
+ *
+ * @param $form
+ * @param $form_state
+ *
+ * @see pbs_passport_lookup_form()
+ * @see pbs_passport_lookup_form_submit()
+ */
+function pbs_passport_lookup_form_validate($form, &$form_state) {
+  if (!valid_email_address($form_state['values']['mail'])) {
+    form_set_error('mail', t('Invalid email address.'));
+  }
+}
+
+/**
+ * Submission handler for pbs_passport_lookup_form().
+ *
+ * @param $form
+ * @param $form_state
+ *
+ * @see pbs_passport_lookup_form()
+ * @see pbs_passport_lookup_form_validate()
+ */
+function pbs_passport_lookup_form_submit($form, &$form_state) {
+  $mail = $form_state['values']['mail'];
+  $client = pbs_passport_get_mvault_client();
+  $response = $client->get_membership_by_email($mail);
+  if ($response) {
+    $details = $response[0];
+    drupal_mail(
+      'pbs_passport',
+      'membership_lookup',
+      $mail,
+      language_default(),
+      $details
+    );
+    $message = t('An email with membership information has been sent to
+      <strong>@mail</strong>.', array('@mail' => $mail));
+    $type = 'status';
+  }
+  else {
+    $message = t('The email address <strong>@mail</strong> does not
+      appear to have an associated membership.', array(
+        '@mail' => $mail
+    ));
+    $type = 'warning';
+  }
+  drupal_set_message($message, $type);
+}
+
+/**
+ * Implements hook_mail().
+ *
+ * @param string $key
+ * @param array $message
+ * @param array $params
+ *
+ * @see pbs_passport_tokens()
+ */
+function pbs_passport_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'membership_lookup':
+      // Format dates.
+      $keys = array(
+        'grace_period',
+        'update_date',
+        'create_date',
+        'start_date',
+        'activation_date',
+        'expire_date'
+      );
+      foreach ($keys as $key) {
+        if (isset($params[$key]) && !empty($params[$key])
+          && $time = strtotime($params[$key])) {
+          $params[$key] = format_date($time, 'custom', 'j F Y');
+        }
+      }
+
+      $station = pbs_passport_get_station_data();
+      $body = variable_get('pbs_passport_lookup_email_' . $params['state']);
+      $message['subject'] = t('Your @station Passport membership status',
+        array('@station' => $station['short_common_name'])
+      );
+
+      // Include Drupal account data for the user being emailed to support
+      // user-based tokens.
+      $account = user_load_by_mail($message['to']);
+
+      $message['body'][] = token_replace($body, array(
+        'membership' => $params,
+        'station' => $station,
+        'user' => $account,
+      ));
+      break;
+  }
+}
+
+/**
+ * Convert an overall Passport state code to a human-readable string.
+ *
+ * @param $state
+ *   A code-based state. Should be one of:
+ *    - PBS_PASSPORT_MEMBERSHIP_ACTIVATED
+ *    - PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED
+ *    - PBS_PASSPORT_MEMBERSHIP_GRACE_PERIOD
+ *    - PBS_PASSPORT_MEMBERSHIP_EXPIRED
+ *    - PBS_PASSPORT_MEMBERSHIP_UNKNOWN
+ *
+ * @return string $state_string
+ *   A human-readable string representing the state value.
+ */
+function pbs_passport_state_to_string($state) {
+  switch ($state) {
+    case PBS_PASSPORT_MEMBERSHIP_ACTIVATED:
+      $state_string = t('Activated');
+      break;
+    case PBS_PASSPORT_MEMBERSHIP_GRACE_PERIOD:
+      $state_string = t('Grace Period');
+      break;
+    case PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED:
+      $state_string = t('Not Activated');
+      break;
+    case PBS_PASSPORT_MEMBERSHIP_EXPIRED:
+      $state_string = t('Expired');
+      break;
+    default:
+      $state_string = t('Unknown');
+      break;
+  }
+  return $state_string;
+}
