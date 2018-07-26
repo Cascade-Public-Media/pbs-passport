@@ -17,7 +17,8 @@
   border-radius: 2px;
   cursor: pointer;
 }
-.pbs_passport-login-link-facebook svg, .pbs_passport-login-link-google svg {
+.pbs_passport-login-link-facebook svg,
+.pbs_passport-login-link-google svg {
   width: 31px;
   height: 26px;
   margin-top: 3px;
@@ -32,7 +33,8 @@
 .pbs_passport-login-link-google path {
   fill: #fff;
 }
-.pbs_passport-login-link-google:focus, .pbs_passport-login-link-google:hover {
+.pbs_passport-login-link-google:focus,
+.pbs_passport-login-link-google:hover {
   background-color: #af362c;
   border-color: #af362c;
 }
@@ -45,7 +47,8 @@
 .pbs_passport-login-link-facebook path {
   fill: #fff;
 }
-.pbs_passport-login-link-facebook:focus, .pbs_passport-login-link-facebook:hover {
+.pbs_passport-login-link-facebook:focus,
+.pbs_passport-login-link-facebook:hover {
   background-color: #2f477a;
   border-color: #2f477a;
 }
@@ -58,7 +61,8 @@
   width: 36px;
   height: 31px;
 }
-.pbs_passport-login-link-pbs:focus, .pbs_passport-login-link-pbs:hover {
+.pbs_passport-login-link-pbs:focus,
+.pbs_passport-login-link-pbs:hover {
   background-color: #0088bc;
   border-color: #0088bc;
 }

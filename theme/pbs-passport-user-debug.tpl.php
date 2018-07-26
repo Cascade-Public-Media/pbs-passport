@@ -1,7 +1,8 @@
 <?php
+
 /**
  * @file
- * Passport User Debug
+ * Passport User Debug page template.
  *
  * Available custom variables:
  * - $session_data: Information about current session variables.

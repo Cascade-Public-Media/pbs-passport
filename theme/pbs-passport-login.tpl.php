@@ -1,7 +1,8 @@
 <?php
+
 /**
  * @file
- * Passport Login
+ * Passport Login page template.
  *
  * Available custom variables:
  * - $login_urls: An array of login URLs for PBS-supported services:

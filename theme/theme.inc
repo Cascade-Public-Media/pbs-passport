@@ -11,8 +11,6 @@
  * Preprocessor for PBS Passport login page. The theme must receive a 'state'
  * key in $variables that will be verified after authentication is complete.
  *
- * @param array $variables
- *
  * @see pbs-passport-login.tpl.php
  * @see pbs_passport_login()
  */
@@ -30,7 +28,7 @@ function template_preprocess_pbs_passport_login(&$variables) {
       'client_id' => variable_get('pbs_passport_oauth_client_id'),
       'scope' => variable_get('pbs_passport_oauth_scope') . ' vppa',
       'state' => $variables['state'],
-    ]
+    ],
   ];
 
   $variables['login_urls'] = [
@@ -52,9 +50,7 @@ function template_preprocess_pbs_passport_login(&$variables) {
 /**
  * Implements template_preprocess().
  *
- * Preprocessor for PBS Passport Used debug page.
- *
- * @param array $variables
+ * Preprocessor for PBS Passport User debug page.
  *
  * @see pbs-passport-user-debug.tpl.php
  */
@@ -74,8 +70,8 @@ function template_preprocess_pbs_passport_user_debug(&$variables) {
           '#type' => 'html_tag',
           '#tag' => 'p',
           '#value' => 'There is no PBS Passport data in the database for this
-          user.'
-        ]
+          user.',
+        ],
       ];
     }
     else {
@@ -93,15 +89,14 @@ function template_preprocess_pbs_passport_user_debug(&$variables) {
     watchdog_exception('pbs_passport', $e);
   }
 
-
   if (!isset($_SESSION['pbs_passport'])) {
     $variables['session_data'] = [
       'not_pbs' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
         '#value' => 'This session does not appear to have been initiated with
-          a PBS OAuth code.'
-      ]
+          a PBS OAuth code.',
+      ],
     ];
   }
   else {
@@ -111,19 +106,19 @@ function template_preprocess_pbs_passport_user_debug(&$variables) {
         '#theme' => 'table',
         '#header' => $header,
         '#rows' => [],
-        '#prefix' => t('<h4>Token Data</h4>')
+        '#prefix' => t('<h4>Token Data</h4>'),
       ],
       'user info' => [
         '#theme' => 'table',
         '#header' => $header,
         '#rows' => [],
-        '#prefix' => t('<h4>User Data</h4>')
+        '#prefix' => t('<h4>User Data</h4>'),
       ],
       'membership info' => [
         '#theme' => 'table',
         '#header' => $header,
         '#rows' => [],
-        '#prefix' => t('<h4>Membership Data</h4>')
+        '#prefix' => t('<h4>Membership Data</h4>'),
       ],
     ];
 
@@ -147,7 +142,7 @@ function template_preprocess_pbs_passport_user_debug(&$variables) {
           $t = $_SESSION['pbs_passport']['user']['vppa']['vppa_last_updated'];
           $val = t('Accepted<br/>@time<br/>@interval ago', [
             '@time' => $t,
-            '@interval' => format_interval(time() - strtotime($t))
+            '@interval' => format_interval(time() - strtotime($t)),
           ]);
         }
         else {
@@ -177,7 +172,7 @@ function template_preprocess_pbs_passport_user_debug(&$variables) {
           '@first' => $pbs_profile['first_name'],
           '@last' => $pbs_profile['last_name'],
           '@uid' => $pbs_profile['UID'],
-          '@provider' => $pbs_profile['login_provider']
+          '@provider' => $pbs_profile['login_provider'],
         ]);
       }
 
@@ -191,8 +186,6 @@ function template_preprocess_pbs_passport_user_debug(&$variables) {
  * Implements template_preprocess().
  *
  * Preprocessor for PBS Passport membership lookup form page.
- *
- * @param array $variables
  *
  * @see pbs-passport-lookup-form.tpl.php
  * @see pbs_passport_lookup_form()

@@ -167,7 +167,7 @@ function pbs_passport_views_data() {
     'sort' => array('handler' => 'views_handler_sort'),
   );
 
-  // Passport start date
+  // Passport start date.
   $data['pbs_passport_user']['passport_start_date'] = array(
     'title' => t('Start Date'),
     'help' => t('The date this Passport membership started.'),
@@ -179,7 +179,7 @@ function pbs_passport_views_data() {
     'filter' => array('handler' => 'views_handler_filter_date'),
   );
 
-  // Passport expire date
+  // Passport expire date.
   $data['pbs_passport_user']['passport_expire_date'] = array(
     'title' => t('Expire Date'),
     'help' => t('The date this Passport membership will expire/expired.'),
@@ -191,7 +191,7 @@ function pbs_passport_views_data() {
     'filter' => array('handler' => 'views_handler_filter_date'),
   );
 
-  // Passport grace period date
+  // Passport grace period date.
   $data['pbs_passport_user']['passport_grace_date'] = array(
     'title' => t('Grace Period Date'),
     'help' => t('The date this Passport grace period ends.'),

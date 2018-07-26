@@ -20,7 +20,7 @@ class PbsPassportWebTestCase extends DrupalWebTestCase {
    *
    * @var object
    */
-  protected $admin_user;
+  protected $adminUser;
 
   /**
    * Test information.
@@ -41,17 +41,17 @@ class PbsPassportWebTestCase extends DrupalWebTestCase {
   public function setUp() {
     parent::setUp(array('ctools', 'views', 'token', 'pbs_passport'));
     // Create and log in a privileged user.
-    $this->admin_user = $this->drupalCreateUser(array(
+    $this->adminUser = $this->drupalCreateUser(array(
       'administer pbs passport',
-      'view pbs passport debug data'
+      'view pbs passport debug data',
     ));
   }
 
   /**
    * Test basic access to all of the module's menu items.
    */
-  function testMenuItems() {
-    $this->drupalLogin($this->admin_user);
+  public function testMenuItems() {
+    $this->drupalLogin($this->adminUser);
     $items = pbs_passport_menu();
     foreach ($items as $path => $item) {
       if ($path == 'pbs-passport/login'
@@ -99,7 +99,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
   /**
    * Test module constant values.
    */
-  function testActivationStateConstants() {
+  public function testActivationStateConstants() {
     $expected = array(
       PBS_PASSPORT_MEMBERSHIP_ACTIVATED => 10,
       PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED => 20,
@@ -109,14 +109,14 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
     );
 
     foreach ($expected as $constant => $value) {
-      $this->assertEqual($constant, $value, '','Constants');
+      $this->assertEqual($constant, $value, '', 'Constants');
     }
   }
 
   /**
    * Test pbs_passport_state_to_string().
    */
-  function testActivationStateToString() {
+  public function testActivationStateToString() {
     $expected = array(
       PBS_PASSPORT_MEMBERSHIP_ACTIVATED => 'Activated',
       PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED => 'Not Activated',
@@ -138,7 +138,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
   /**
    * Test pbs_passport_get_station_data().
    */
-  function testGetStationData() {
+  public function testGetStationData() {
     $group = 'Station Data';
 
     $data = pbs_passport_get_station_data(NULL, 'kcts');
@@ -153,16 +153,19 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
   /**
    * Helper function for getting private methods from classes.
    *
-   * @param $class
-   * @param $name
+   * @param string $class
+   *   The parent class of the method.
+   * @param string $name
+   *   The method name.
    *
    * @return bool|\ReflectionMethod
+   *   FALSE if an exception is raiser, the reflect method otherwise.
    */
   protected static function getMethod($class, $name) {
     try {
       $class = new ReflectionClass($class);
       $method = $class->getMethod($name);
-      $method->setAccessible(true);
+      $method->setAccessible(TRUE);
     }
     catch (Exception $e) {
       $method = FALSE;
@@ -176,7 +179,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
    * Because we cannot actually establish an API connection, these tests are
    * very limited.
    */
-  function testPbsLaasClient() {
+  public function testPbsLaasClient() {
     $group = 'Login Client';
 
     // Create client instance.
@@ -189,17 +192,17 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
 
     // VPPA status (must have been accepted in the past two years).
     $user = array('vppa' => array());
-    $client->derive_and_append_vppa_status($user);
+    $client->deriveAndAppendVppaStatus($user);
     $this->assertEqual($user['vppa_status'], 'false', '', $group);
     $user['vppa']['vppa_last_updated'] = date('Y-m-d', strtotime('-3 years'));
     $user['vppa']['vppa_accepted'] = FALSE;
-    $client->derive_and_append_vppa_status($user);
+    $client->deriveAndAppendVppaStatus($user);
     $this->assertEqual($user['vppa_status'], 'rejected', '', $group);
     $user['vppa']['vppa_accepted'] = TRUE;
-    $client->derive_and_append_vppa_status($user);
+    $client->deriveAndAppendVppaStatus($user);
     $this->assertEqual($user['vppa_status'], 'expired', '', $group);
     $user['vppa']['vppa_last_updated'] = date('Y-m-d', strtotime('-1 year'));
-    $client->derive_and_append_vppa_status($user);
+    $client->deriveAndAppendVppaStatus($user);
     $this->assertEqual($user['vppa_status'], 'valid', '', $group);
   }
 
@@ -209,7 +212,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
    * Because we cannot actually establish an API connection, these tests are
    * very limited.
    */
-  function testPbsMvaultClient() {
+  public function testPbsMvaultClient() {
     $group = 'MVault Client';
 
     // Create client instance.
@@ -223,7 +226,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
     // Login provider normalization.
     $method = self::getMethod(
       'PbsMvaultClient',
-      '_normalize_login_provider'
+      'normalizeLoginProvider'
     );
     $data = array('pbs_profile' => array('login_provider' => ''));
     $test_providers = array(
@@ -247,7 +250,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
     // Activation URL generation.
     $method = self::getMethod(
       'PbsMvaultClient',
-      '_add_activation_url'
+      'addActivationUrl'
     );
     $data = array('token' => NULL);
     $method->invokeArgs($client, array(&$data));
@@ -264,28 +267,32 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
     // Membership state determination.
     $method = self::getMethod(
       'PbsMvaultClient',
-      '_add_membership_state'
+      'addMembershipState'
     );
-    $data = array('current_state' => array('explanation' => array(
-      'token_activated' => NULL,
-      'timing' => NULL
-    )));
+    $data = array(
+      'current_state' => array(
+        'explanation' => array(
+          'token_activated' => NULL,
+          'timing' => NULL,
+        ),
+      ),
+    );
 
     $expected = array(
       array(
         FALSE,
         'within_start_expire_dates',
-        PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED
+        PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED,
       ),
       array(
         TRUE,
         'within_start_expire_dates',
-        PBS_PASSPORT_MEMBERSHIP_ACTIVATED
+        PBS_PASSPORT_MEMBERSHIP_ACTIVATED,
       ),
       array(
         FALSE,
         'within_grace_period',
-        PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED
+        PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED,
       ),
       array(TRUE, 'within_grace_period', PBS_PASSPORT_MEMBERSHIP_GRACE_PERIOD),
       array(NULL, 'grace_period_over', PBS_PASSPORT_MEMBERSHIP_EXPIRED),
@@ -304,4 +311,5 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
       );
     }
   }
+
 }

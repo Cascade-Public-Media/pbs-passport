@@ -10,13 +10,12 @@
  *
  * @param array $edit
  *   An array of basic user information just before it is saved.
- *
- * @param $pbs_user
+ * @param array $pbs_user
  *   PBS account user information.
  *
  * @see pbs_passport_oauth2_callback()
  */
-function hook_pbs_passport_user_presave_alter(&$edit, $pbs_user) {
+function hook_pbs_passport_user_presave_alter(array &$edit, array $pbs_user) {
 
 }
 
@@ -25,13 +24,12 @@ function hook_pbs_passport_user_presave_alter(&$edit, $pbs_user) {
  *
  * @param object $user
  *   A fully-loaded user object.
- *
- * @param $pbs_user
+ * @param array $pbs_user
  *   PBS account user information.
  *
  * @see pbs_passport_oauth2_callback()
  */
-function hook_pbs_passport_user_insert_alter(&$user, $pbs_user) {
+function hook_pbs_passport_user_insert_alter(&$user, array $pbs_user) {
 
 }
 
@@ -42,12 +40,11 @@ function hook_pbs_passport_user_insert_alter(&$user, $pbs_user) {
  *
  * @param object $user
  *   A fully-loaded user object.
- *
- * @param $pbs_user
+ * @param array $pbs_user
  *   PBS account user information.
  *
  * @see pbs_passport_oauth2_callback()
  */
-function hook_pbs_passport_user_login($user, $pbs_user) {
+function hook_pbs_passport_user_login($user, array $pbs_user) {
 
 }

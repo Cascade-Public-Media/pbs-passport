@@ -6,7 +6,7 @@
  */
 
 /**
- * Class PbsMvaultClient
+ * PBS Membership Vault API client.
  *
  * This class was originally developed by William Tam and Benny Wong for WNET
  * New York Public Media, with modifications from the Bear Group, Inc.
@@ -18,76 +18,80 @@
 class PbsMvaultClient {
 
   /**
+   * Membership vault production base address.
+   *
    * @var string
-   *   Membership vault production base address.
    */
   const MVAULT_PROD = 'https://mvault.services.pbs.org/api/';
 
   /**
+   * Membership vault QA base address.
+   *
    * @var string
-   *   Membership vault QA base address.
    */
   const MVAULT_QA = 'https://mvault-qa.services.pbs.org/api/';
 
   /**
+   * Client ID for API connection.
+   *
    * @var string
-   *   ID provided by PBS.
    */
-  private $client_id;
+  private $clientId;
 
   /**
+   * Client secret for API connection.
+   *
    * @var string
-   *   Secret key provided by PBS.
    */
-  private $client_secret;
+  private $clientSecret;
 
   /**
+   * PBS member station ID.
+   *
    * @var string
-   *   Station ID from PBS.
    */
-  private $station_id;
+  private $stationId;
 
   /**
+   * Base URI of PBS MVault endpoint.
+   *
    * @var string
-   *   Base URI of PBS MVault endpoint.
    */
   private $uri;
 
   /**
+   * Auth string combining $clientId and $clientSecret.
+   *
    * @var string
-   *   Combination of $client_id and $client_secret.
    */
-  private $auth_string;
+  private $authString;
 
   /**
    * PbsMvaultClient constructor.
    *
    * @param string $client_id
-   *   ID provided by PBS.
-   *
+   *   Client ID for API connection.
    * @param string $client_secret
-   *   Secret key provided by PBS.
-   *
+   *   Client secret for API connection.
    * @param string $station_id
-   *   The PBS member station ID.
-   *
+   *   PBS member station ID.
    * @param string $environment
    *   The enviornment to connect to. Should be 'qa' or 'prod' and will always
    *   default to 'qa'.
    */
   public function __construct($client_id = '', $client_secret = '', $station_id = '', $environment = 'qa') {
-    $this->client_id = $client_id;
-    $this->client_secret = $client_secret;
-    $this->station_id = $station_id;
-    $this->auth_string = base64_encode(
-      $this->client_id . ":" . $this->client_secret
+    $this->clientId = $client_id;
+    $this->clientSecret = $client_secret;
+    $this->stationId = $station_id;
+    $this->authString = base64_encode(
+      $this->clientId . ":" . $this->clientSecret
     );
 
     if ($environment == 'prod') {
-      $this->uri = self::MVAULT_PROD . $this->station_id;
+      $this->uri = self::MVAULT_PROD . $this->stationId;
     }
     else {
-      $this->uri = self::MVAULT_QA . $this->station_id;
+      $this->uri = self::MVAULT_QA . $this->stationId;
     }
 
     date_default_timezone_set('UTC');
@@ -102,25 +106,25 @@ class PbsMvaultClient {
    * @return array|bool
    *   An array of response data or FALSE on error.
    */
-  private function get_request($endpoint) {
+  private function getRequest($endpoint) {
     $data = [];
     $error = [];
 
     $response = drupal_http_request($this->uri . $endpoint, [
       'method' => 'GET',
-      'headers' => ['Authorization' => 'Basic ' . $this->auth_string]
+      'headers' => ['Authorization' => 'Basic ' . $this->authString],
     ]);
 
     if (isset($response->error)) {
       $details = json_decode($response->data);
 
-      // "No resource found" can be returned for a regular PBS account user
-      // without a (Passport) membership.
+      /* "No resource found" can be returned for a regular PBS account user
+      without a (Passport) membership. Some endpoints provide "errors" for
+      non-error results. */
 
-      // Some endpoints provide "errors" for non-error results:
       $non_errors = array(
         'No resource found',
-        'No memberships exist for this user'
+        'No memberships exist for this user',
       );
       if (isset($details->errors) && !in_array($details->errors, $non_errors)) {
         $error = [
@@ -131,9 +135,9 @@ class PbsMvaultClient {
             '@endpoint' => $endpoint,
             '@code' => $response->code,
             '@message' => $response->error,
-            '@data' => $response->data
+            '@data' => $response->data,
           ],
-          'severity' => WATCHDOG_CRITICAL
+          'severity' => WATCHDOG_CRITICAL,
         ];
       }
     }
@@ -159,14 +163,13 @@ class PbsMvaultClient {
    *
    * @param string $endpoint
    *   The endpoint to hit.
-   *
    * @param array $data
    *   Fields to include in the request.
    *
    * @return bool
    *   FALSE for any known errors, TRUE otherwise. PATCH does not return data.
    */
-  private function patch_request($endpoint, $data) {
+  private function patchRequest($endpoint, array $data) {
     $data = json_encode($data, JSON_UNESCAPED_UNICODE);
     $data_length = drupal_strlen($data);
     $error = [];
@@ -174,11 +177,11 @@ class PbsMvaultClient {
     $response = drupal_http_request($this->uri . $endpoint, [
       'method' => 'PATCH',
       'headers' => [
-        'Authorization' => 'Basic ' . $this->auth_string,
+        'Authorization' => 'Basic ' . $this->authString,
         'Content-Type' => 'application/json',
-        'Content-Length' => $data_length
+        'Content-Length' => $data_length,
       ],
-      'data' => $data
+      'data' => $data,
     ]);
 
     if (isset($response->error)) {
@@ -191,9 +194,9 @@ class PbsMvaultClient {
           '@code' => $response->code,
           '@message' => $response->error,
           '@sent' => $data,
-          '@received' => $response->data
+          '@received' => $response->data,
         ],
-        'severity' => WATCHDOG_CRITICAL
+        'severity' => WATCHDOG_CRITICAL,
       ];
     }
 
@@ -214,16 +217,17 @@ class PbsMvaultClient {
    * Get membership info by membership ID.
    *
    * @param string $membership_id
+   *   The membership ID to query for.
    *
    * @return array
    *   An empty array is no membership data is found.
    *
    * @url https://docs.pbs.org/display/MV/Membership+Vault+API#MembershipVaultAPI-get
    */
-  public function get_membership($membership_id) {
-    $membership  = $this->get_request('/memberships/' . $membership_id . '/');
+  public function getMembership($membership_id) {
+    $membership = $this->getRequest('/memberships/' . $membership_id . '/');
     if ($membership) {
-      $this->_modify_membership_response_data($membership);
+      $this->modifyMembershipResponseData($membership);
     }
     return $membership;
   }
@@ -232,19 +236,20 @@ class PbsMvaultClient {
    * Get membership info by UID.
    *
    * @param int $uid
+   *   The UID to query for.
    *
    * @return array
    *   An empty array is no membership data is found.
    *
    * @url https://docs.pbs.org/display/MV/Membership+Vault+API#MembershipVaultAPI-get
    */
-  public function get_membership_by_uid($uid) {
-    $data = $this->get_request('/memberships/filter/uid/' . $uid . '/');
+  public function getMembershipByUid($uid) {
+    $data = $this->getRequest('/memberships/filter/uid/' . $uid . '/');
 
     // This endpoint returns an array of arrays.
     if ($data) {
       $data = $data[0];
-      $this->_modify_membership_response_data($data);
+      $this->modifyMembershipResponseData($data);
     }
 
     return $data;
@@ -254,14 +259,15 @@ class PbsMvaultClient {
    * Get membership info by email address.
    *
    * @param string $email
+   *   The email address to query for.
    *
    * @return array
    *   An empty array is no membership data is found.
    *
    * @url https://docs.pbs.org/display/MV/Membership+Vault+API#MembershipVaultAPI-get
    */
-  public function get_membership_by_email($email) {
-    $data = $this->get_request('/memberships/filter/email/' . $email . '/');
+  public function getMembershipByEmail($email) {
+    $data = $this->getRequest('/memberships/filter/email/' . $email . '/');
 
     // This endpoint returns a different array of arrays than the others. It is
     // possible for it to return multiple memberships.
@@ -269,7 +275,7 @@ class PbsMvaultClient {
       $data = $data['objects'];
 
       foreach ($data as $idx => $info) {
-        $this->_modify_membership_response_data($data[$idx]);
+        $this->modifyMembershipResponseData($data[$idx]);
       }
     }
 
@@ -280,10 +286,17 @@ class PbsMvaultClient {
    * Activate a membership.
    *
    * @param string $membership_id
+   *   The Membership ID of the membership to activate.
    * @param int $uid
+   *   The UID of the membership to activate.
    * @param bool $check_is_active
+   *   Whether or not to check if the membership is already activated.
    *
-   * @return array|bool|mixed
+   * @return array|bool
+   *   FALSE if the $check_is_active is TRUE and the membership is already
+   *   activated, the UID is already associated with a different membership, or
+   *   the membership is activation endpoint fails. An array of membership data
+   *   otherwise.
    *
    * @url https://docs.pbs.org/display/MV/Technical+Deep+Dive%3A+how+%27activation%27+works
    */
@@ -291,7 +304,7 @@ class PbsMvaultClient {
 
     // Check if this membership is already activated.
     if ($check_is_active) {
-      $membership = $this->get_membership($membership_id);
+      $membership = $this->getMembership($membership_id);
 
       if (!$membership) {
         watchdog(
@@ -305,7 +318,7 @@ class PbsMvaultClient {
     }
 
     // Check if this $uid is already associated with a membership.
-    $membership = $this->get_membership_by_uid($uid);
+    $membership = $this->getMembershipByUid($uid);
     if (!$membership) {
       watchdog(
         'pbs_passport',
@@ -318,7 +331,7 @@ class PbsMvaultClient {
 
     // Activate the membership.
     $data = ['uid' => $uid];
-    $activation = $this->patch_request(
+    $activation = $this->patchRequest(
       '/memberships/' . $membership_id . '/',
       $data
     );
@@ -327,18 +340,19 @@ class PbsMvaultClient {
     }
 
     // Return the updated membership data.
-    return $this->get_membership($membership_id);
+    return $this->getMembership($membership_id);
   }
 
   /**
    * Modifies the response of a membership from the MVault API.
    *
-   * @param $data
+   * @param array $data
+   *   An array of membership data.
    */
-  private function _modify_membership_response_data(&$data) {
-    $this->_add_membership_state($data);
-    $this->_add_activation_url($data);
-    $this->_normalize_login_provider($data);
+  private function modifyMembershipResponseData(array &$data) {
+    $this->addMembershipState($data);
+    $this->addActivationUrl($data);
+    $this->normalizeLoginProvider($data);
   }
 
   /**
@@ -351,7 +365,7 @@ class PbsMvaultClient {
    * @param array $data
    *   An array of API response data from a membership endpoint.
    */
-  private function _normalize_login_provider(&$data) {
+  private function normalizeLoginProvider(array &$data) {
     $provider_string = NULL;
     if (!empty($data) && !empty($data['pbs_profile'])) {
       $provider_string = drupal_strtolower(trim(
@@ -363,18 +377,21 @@ class PbsMvaultClient {
       case 'facebook':
         $provider_string = 'Facebook';
         break;
+
       case 'google':
       case 'googleplus':
       case 'google-oauth2':
         $provider_string = 'Google';
         break;
+
       case 'pbs':
       case 'openid':
         $provider_string = 'PBS';
         break;
+
       default:
         $provider_string = t('Unrecognized (@provider)', array(
-          '@provider' => $provider_string
+          '@provider' => $provider_string,
         ));
         break;
     }
@@ -385,9 +402,10 @@ class PbsMvaultClient {
   /**
    * Adds the PBS.org-based activation URL to a response array.
    *
-   * @param $data
+   * @param array $data
+   *   An array of API response data from a membership endpoint.
    */
-  private function _add_activation_url(&$data) {
+  private function addActivationUrl(array &$data) {
     if (!empty($data)) {
       $data['activation_url'] = NULL;
       if (!empty($data['token'])) {
@@ -409,7 +427,7 @@ class PbsMvaultClient {
    *
    * @url https://docs.pbs.org/display/MV/Membership+Vault+API
    */
-  private function _add_membership_state(&$data) {
+  private function addMembershipState(array &$data) {
     if (!empty($data)) {
       $activated = $data['current_state']['explanation']['token_activated'];
       switch ($data['current_state']['explanation']['timing']) {
@@ -421,6 +439,7 @@ class PbsMvaultClient {
             $state = PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED;
           }
           break;
+
         case 'within_grace_period':
           if ($activated) {
             $state = PBS_PASSPORT_MEMBERSHIP_GRACE_PERIOD;
@@ -429,13 +448,16 @@ class PbsMvaultClient {
             $state = PBS_PASSPORT_MEMBERSHIP_NOT_ACTIVATED;
           }
           break;
+
         case 'grace_period_over':
           $state = PBS_PASSPORT_MEMBERSHIP_EXPIRED;
           break;
+
         default:
           $state = PBS_PASSPORT_MEMBERSHIP_UNKNOWN;
       }
       $data['state'] = $state;
     }
   }
+
 }

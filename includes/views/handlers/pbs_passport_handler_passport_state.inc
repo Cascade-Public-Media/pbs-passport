@@ -21,4 +21,5 @@ class pbs_passport_handler_passport_state extends views_handler_field {
     }
     return pbs_passport_state_to_string($state);
   }
+
 }
