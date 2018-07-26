@@ -32,8 +32,8 @@ REQUIREMENTS
 
 This module requires the following modules:
 
- * Token (https://drupal.org/project/token)
- * Views (https://drupal.org/project/views)
+ * [Token](https://drupal.org/project/token)
+ * [Views](https://drupal.org/project/views)
 
 OAuth2 client and MVault credentials from PBS are required to configure and use 
 this module.
@@ -53,72 +53,74 @@ INSTALLATION
 CONFIGURATION
 -------------
 
-Four configuration pages are provided. These pages can be used top configure
+Four configuration pages are provided. These pages can be used to configure
 important settings for the module.
 
- * Administration » Configuration » People » PBS Passport » General Settings
+ * `Administration » Configuration » People » PBS Passport » General Settings`
    Configure a station call sign and ID (required).
    
- * Administration » Configuration » People » PBS Passport » MVault Settings
+ * `Administration » Configuration » People » PBS Passport » MVault Settings`
    Configure the production and development MVault API credentials as provided
    by PBS (required).
    
- * Administration » Configuration » People » PBS Passport » OAuth2 Settings
+ * `Administration » Configuration » People » PBS Passport » OAuth2 Settings`
    Configure the OAuth2 client credentials and scope as provided by PBS 
    (required).
    
- * Administration » Configuration » People » PBS Passport » Email Templates
+ * `Administration » Configuration » People » PBS Passport » Email Templates`
    Configure contents of emails sent from PBS Passport.
 
 Three templates are provided. These templates can be overridden by custom theme
 implementations.
 
- * pbs-passport-login.tpl.php
-   The default "login" page served at /pbs-passport/login.
+ * `pbs-passport-login.tpl.php`
+   The default authorization page served from /pbs-passport/login.
    
- * pbs-passport-lookup-form.tpl.php
-   The default membership lookup form served at /pbs-passport/lookup.
+ * `pbs-passport-lookup-form.tpl.php`
+   The default membership lookup form served from /pbs-passport/lookup.
    
- * pbs-passport-user-debug.tpl.php
-   A (very) basic debugging page server at /pbs-passport/debug (based on the 
-   "view pbs passport debug data" permission).
+ * `pbs-passport-user-debug.tpl.php`
+   A basic debugging page served from /pbs-passport/debug (based on the "view pbs 
+   passport debug data" permission).
    
-Three hooks are provided. These hooks can be used by custom modules to add 
-behaviors triggered by PBS Passport actions.
+Three hooks are provided. These hooks can be used by other modules to add 
+behaviors triggered by PBS Passport events.
 
- * hook_pbs_passport_user_presave_alter()
+ * `hook_pbs_passport_user_presave_alter()`
    Alter a Drupal user before it is created by the PBS Passport module.
    
- * hook_pbs_passport_user_insert_alter()
+ * `hook_pbs_passport_user_insert_alter()`
    Take action after a Drupal user is created by the PBS Passport module.
    
- * hook_pbs_passport_user_login()
+ * `hook_pbs_passport_user_login()`
    Take action after PBS authentication and before final Drupal login.
 
 FUNCTIONALITY
 -------------
 
-When a user authorizes via PBS OAuth2, the PBS Passport module will look for a 
+When a user authorizes via PBS OAuth, the PBS Passport module will look for a 
 Drupal account with the same email address and log in with that account. If a 
 Drupal account does not exist, a new one is created and logged in.
 
 During login, information from the PBS OAuth2 and MVault services is cached in 
 `$_SESSION['pbs_passport']` for the duration of the user's session. Some data is
 also stored in the local `pbs_passport_user` database table. This data is 
-evaluated/updated each time the user logs in.
+evaluated/updated each time the user logs in and attached as an array with the 
+`pbs_passport` key to a user object loaded with `user_load()`.
 
 This module provides two sets of tokens in its root `pbs_passport` type:
 
- * `pbs_passport_station` provides tokenized data about the member station 
-   (see CONFIGURATION section for station settings info). E.g. 
-   `[pbs_passport:station:call_sign]`
+ * `pbs_passport_station`
+    Provides tokenized data about the member station (see CONFIGURATION section 
+    for station settings info). E.g. `[pbs_passport:station:call_sign]`
    
- * `pbs_passport_membership` provides tokenzied data about a logged-in user's
-   Passoport membership. E.g. `[pbs_passport:membership:email]`.
+ * `pbs_passport_membership`
+    Provides tokenzied data about a logged-in user's Passoport membership. E.g. 
+    `[pbs_passport:membership:email]`.
    
 Some Passport data is also exposed for Views with a users base table. A simple, 
 searchable view of locally-stored data about Passport-authorized users is 
-available at Administration » People » PBS Passport Users.
+available at `Administration » People » PBS Passport Users`.
 
 ACKNOWLEDGEMENTS
 ----------------
