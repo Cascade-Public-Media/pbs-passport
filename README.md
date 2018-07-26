@@ -80,8 +80,8 @@ implementations.
    The default membership lookup form served from /pbs-passport/lookup.
    
  * `pbs-passport-user-debug.tpl.php`
-   A basic debugging page served from /pbs-passport/debug (based on the "view pbs 
-   passport debug data" permission).
+   A basic debugging page served from /pbs-passport/debug (based on the "view
+   pbs passport debug data" permission).
    
 Three hooks are provided. These hooks can be used by other modules to add 
 behaviors triggered by PBS Passport events.
