@@ -477,9 +477,19 @@ function pbs_passport_authenticate() {
 function pbs_passport_user_login(&$edit, $account) {
   $session = &$_SESSION['pbs_passport'];
 
-  // Load user membership data.
+  // Attempt to get membership data by email address.
   $client = pbs_passport_get_mvault_client();
   $response = $client->getMembershipByEmail($account->mail);
+
+  // Fallback on PID if no email relationship is found.
+  if (empty($reponse) && !empty($session['user']['pid'])) {
+    $membership = $client->getMembershipByUid($session['user']['pid']);
+    if (!empty($membership)) {
+      // Mimic return format of $client->getMembershipByEmail();
+      $response[0] = $membership;
+    }
+  }
+
   if ($response) {
     $session['membership'] = $response[0];
 
@@ -631,8 +641,10 @@ function pbs_passport_oauth2_callback($code) {
 function pbs_passport_user_data_update($user, array $data) {
   $fields = [];
 
+  $user_pid = NULL;
   if (isset($data['user']) && !empty($data['user'])) {
     $fields['pid'] = $data['user']['pid'];
+    $user_pid = $data['user']['pid'];
     $fields['email'] = $data['user']['email'];
     $fields['first_name'] = $data['user']['first_name'];
     $fields['last_name'] = $data['user']['last_name'];
@@ -664,7 +676,16 @@ function pbs_passport_user_data_update($user, array $data) {
       );
     }
     if (!empty($data['membership']['pbs_profile'])) {
-      $fields['login_provider'] = $data['membership']['pbs_profile']['login_provider'];
+      $profile = &$data['membership']['pbs_profile'];
+      $fields['login_provider'] = $profile['login_provider'];
+
+      // Override User PID if PBS Profile PID is different. The Profile PID is
+      // what grants the user access to Passport content. These can be different
+      // if, for example, the user's email address does not match the PBS
+      // Profile email address.
+      if ($user_pid && isset($profile['UID']) && $user_pid != $profile['UID']) {
+        $fields['pid'] = $profile['UID'];
+      }
     }
   }
 
