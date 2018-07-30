@@ -220,7 +220,7 @@ class PbsMvaultClient {
    *   The membership ID to query for.
    *
    * @return array
-   *   An empty array is no membership data is found.
+   *   An empty array if no membership data is found.
    *
    * @url https://docs.pbs.org/display/MV/Membership+Vault+API#MembershipVaultAPI-get
    */
@@ -239,7 +239,7 @@ class PbsMvaultClient {
    *   The UID to query for.
    *
    * @return array
-   *   An empty array is no membership data is found.
+   *   An empty array if no membership data is found.
    *
    * @url https://docs.pbs.org/display/MV/Membership+Vault+API#MembershipVaultAPI-get
    */
@@ -262,7 +262,7 @@ class PbsMvaultClient {
    *   The email address to query for.
    *
    * @return array
-   *   An empty array is no membership data is found.
+   *   An empty array if no membership data is found.
    *
    * @url https://docs.pbs.org/display/MV/Membership+Vault+API#MembershipVaultAPI-get
    */
