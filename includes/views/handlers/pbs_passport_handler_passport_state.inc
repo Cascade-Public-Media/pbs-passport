@@ -8,6 +8,7 @@
 /**
  * Translate Passport state information to a human-readable string.
  */
+// @codingStandardsIgnoreStart
 class pbs_passport_handler_passport_state extends views_handler_field {
 
   /**
@@ -23,3 +24,4 @@ class pbs_passport_handler_passport_state extends views_handler_field {
   }
 
 }
+// @codingStandardsIgnoreEnd
