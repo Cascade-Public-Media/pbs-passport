@@ -27,6 +27,7 @@ function pbs_passport_permission() {
   return array(
     'administer pbs passport' => array(
       'title' => t('Administer PBS Passport settings'),
+      'restrict access' => TRUE,
     ),
     'view pbs passport debug data' => array(
       'title' => t('View PBS Passport debug data'),
