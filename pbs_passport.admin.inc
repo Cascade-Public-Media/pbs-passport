@@ -144,6 +144,21 @@ function pbs_passport_settings_general() {
     ),
   );
 
+  $default_value = variable_get('pbs_passport_restricted_roles');
+  if (empty($default_value)) {
+    $default_value = array();
+  }
+  $form['pbs_passport_restricted_roles'] = array(
+    '#title' => t('Restricted Roles'),
+    '#type' => 'checkboxes',
+    '#options' => user_roles(TRUE),
+    '#default_value' => $default_value,
+    '#description' => t('Selected roles <strong>will not be able to log in to 
+      the site using PBS Passport authorization</strong> .<br/>PBS.org does not 
+      use email verification for new accounts so it is highly recommended that
+      any roles with administrative permissions should be restricted here.'),
+  );
+
   return system_settings_form($form);
 }
 

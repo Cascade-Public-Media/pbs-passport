@@ -563,10 +563,22 @@ function pbs_passport_oauth2_callback($code) {
   // Successful OAuth.
   if (!empty($pbs_user['email'])) {
     $email = $pbs_user['email'];
-    $user = user_load_by_mail($email);
+    $account = user_load_by_mail($email);
 
+    if ($account) {
+      // Prevent login if the existing user has a restricted role.
+      $restricted_roles = variable_get('pbs_passport_restricted_roles');
+      if (is_array($restricted_roles)) {
+        foreach ($restricted_roles as $rid) {
+          if (isset($account->roles[$rid])) {
+            $account = NULL;
+            break;
+          }
+        }
+      }
+    }
     // Create Drupal account if email is not found in existing accounts.
-    if (!$user) {
+    else {
 
       // Generate unique user name.
       $name = trim(drupal_substr($email, 0, strpos($email, '@')));
@@ -586,14 +598,14 @@ function pbs_passport_oauth2_callback($code) {
       drupal_alter('pbs_passport_user_presave', $edit, $pbs_user);
 
       try {
-        $user = user_save(NULL, $edit);
+        $account = user_save(NULL, $edit);
 
-        drupal_alter('pbs_passport_user_insert', $user, $pbs_user);
+        drupal_alter('pbs_passport_user_insert', $account, $pbs_user);
 
         watchdog(
           'pbs_passport',
           'New user @user (@email) created during PBS authentication.',
-          ['@user' => $user->name, '@email' => $user->mail],
+          ['@user' => $account->name, '@email' => $account->mail],
           WATCHDOG_INFO
         );
       }
@@ -609,12 +621,12 @@ function pbs_passport_oauth2_callback($code) {
     }
 
     // Log user in.
-    if (isset($user) && !empty($user)) {
-      module_invoke_all('pbs_passport_user_login', $user, $pbs_user);
+    if (isset($account) && !empty($account)) {
+      module_invoke_all('pbs_passport_user_login', $account, $pbs_user);
       $form_state = array();
-      $form_state['uid'] = $user->uid;
+      $form_state['uid'] = $account->uid;
       user_login_submit(array(), $form_state);
-      pbs_passport_user_data_update($user, $_SESSION['pbs_passport']);
+      pbs_passport_user_data_update($account, $_SESSION['pbs_passport']);
     }
 
   }
