@@ -144,19 +144,35 @@ function pbs_passport_settings_general() {
     ),
   );
 
+  $form['restricted_roles'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Restricted Roles'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
   $default_value = variable_get('pbs_passport_restricted_roles');
   if (empty($default_value)) {
     $default_value = array();
   }
-  $form['pbs_passport_restricted_roles'] = array(
-    '#title' => t('Restricted Roles'),
+  $form['restricted_roles']['pbs_passport_restricted_roles'] = array(
+    '#title' => t('Selected roles will not be able to log in using PBS 
+      Passport authorization.'),
     '#type' => 'checkboxes',
     '#options' => user_roles(TRUE),
     '#default_value' => $default_value,
-    '#description' => t('Selected roles <strong>will not be able to log in to 
-      the site using PBS Passport authorization</strong> .<br/>PBS.org does not 
-      use email verification for new accounts so it is highly recommended that
-      any roles with administrative permissions should be restricted here.'),
+    '#description' => t('PBS.org does not use email verification for new 
+      accounts so <strong>it is highly recommended that any roles with 
+      administrative permissions be restricted</strong>.'),
+  );
+
+  $form['restricted_roles']['pbs_passport_restricted_roles_message'] = array(
+    '#title' => t('Login denied message'),
+    '#type' => 'textarea',
+    '#default_value' => variable_get('pbs_passport_restricted_roles_message'),
+    '#description' => t('Message to appear to a user with a restricted role
+      after login is denied.'),
   );
 
   return system_settings_form($form);

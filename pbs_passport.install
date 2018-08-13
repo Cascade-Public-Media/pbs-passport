@@ -209,3 +209,14 @@ EOD;
     }
   }
 }
+
+/**
+ * Add default variable for restricted roles login denied message.
+ */
+function pbs_passport_update_7100() {
+  $default = variable_get(
+    'pbs_passport_restricted_roles_message',
+    t('Login denied due to site configuration. Contact administrator for assistance.')
+  );
+  variable_set('pbs_passport_restricted_roles_message', $default);
+}

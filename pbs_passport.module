@@ -567,10 +567,28 @@ function pbs_passport_oauth2_callback($code) {
 
     if ($account) {
       // Prevent login if the existing user has a restricted role.
+      $roles = user_roles();
       $restricted_roles = variable_get('pbs_passport_restricted_roles');
       if (is_array($restricted_roles)) {
         foreach ($restricted_roles as $rid) {
           if (isset($account->roles[$rid])) {
+            watchdog(
+              'pbs_passport',
+              'Login prevented for %email due to restricted role %role. See
+                <a href="@url">General Settings</a> for more information.',
+              array(
+                '%email' => $account->mail,
+                '%role' => $roles[$rid],
+                '@url' => '/admin/config/people/pbs-passport/settings',
+              ),
+              WATCHDOG_WARNING
+            );
+
+            drupal_set_message(
+              variable_get('pbs_passport_restricted_roles_message'),
+              'error'
+            );
+
             $account = NULL;
             break;
           }
