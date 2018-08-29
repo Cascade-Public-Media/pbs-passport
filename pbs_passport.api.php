@@ -48,3 +48,23 @@ function hook_pbs_passport_user_insert_alter(&$user, array $pbs_user) {
 function hook_pbs_passport_user_login($user, array $pbs_user) {
 
 }
+
+/**
+ * Alter the response after a Passport membership lookup.
+ *
+ * Data used for the lookup email is pulled from the first record in the
+ * $response array ($response[0]). This hook can be used for custom processing
+ * of multiple memberships or for modifications of membership data.
+ *
+ * @param array $response
+ *   The response array from the lookup.
+ * @param array $form
+ *   The lookup form array.
+ * @param array $form_state
+ *   The lookup form state array.
+ *
+ * @see pbs_passport_lookup_form_submit()
+ */
+function hook_pbs_passport_lookup_alter(array &$response, array $form, array $form_state) {
+
+}

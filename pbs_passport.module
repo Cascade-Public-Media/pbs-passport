@@ -1039,6 +1039,9 @@ function pbs_passport_lookup_form_submit(array $form, array &$form_state) {
   $mail = $form_state['values']['mail'];
   $client = pbs_passport_get_mvault_client();
   $response = $client->getMembershipByEmail($mail);
+
+  drupal_alter('pbs_passport_lookup', $response, $form, $form_state);
+
   if ($response) {
     $details = $response[0];
     drupal_mail(
