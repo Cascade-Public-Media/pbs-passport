@@ -46,7 +46,7 @@ function pbs_passport_menu() {
     'title' => 'PBS Passport',
     'description' => 'PBS Passport administration pages.',
     'page callback' => 'system_admin_menu_block_page',
-    'access arguments' => array('access administration pages'),
+    'access arguments' => array('administer pbs passport'),
     'file path' => drupal_get_path('module', 'system'),
     'file' => 'system.admin.inc',
   );
@@ -483,7 +483,7 @@ function pbs_passport_user_login(&$edit, $account) {
   $response = $client->getMembershipByEmail($account->mail);
 
   // Fallback on PID if no email relationship is found.
-  if (empty($reponse) && !empty($session['user']['pid'])) {
+  if (empty($response) && !empty($session['user']['pid'])) {
     $membership = $client->getMembershipByUid($session['user']['pid']);
     if (!empty($membership)) {
       // Mimic return format of $client->getMembershipByEmail();
@@ -859,10 +859,10 @@ function pbs_passport_update_account_picture($account, $uri) {
  * @param null|string $secret
  *   (optional) The API secret.
  *
- * @return PbsMvaultClient
- *   A PbsMvaultClient instance.
+ * @return PbsPassportMvaultClient
+ *   A PbsPassportMvaultClient instance.
  *
- * @see PbsMvaultClient()
+ * @see PbsPassportMvaultClient()
  */
 function pbs_passport_get_mvault_client($environment = NULL, $key = NULL, $secret = NULL) {
   static $client;
@@ -871,7 +871,7 @@ function pbs_passport_get_mvault_client($environment = NULL, $key = NULL, $secre
     return $client;
   }
 
-  module_load_include('inc', 'pbs_passport', 'classes/PbsMvaultClient');
+  module_load_include('inc', 'pbs_passport', 'classes/PbsPassportMvaultClient');
 
   if (empty($environment)) {
     $environment = variable_get('pbs_passport_endpoint', 'qa');
@@ -884,7 +884,7 @@ function pbs_passport_get_mvault_client($environment = NULL, $key = NULL, $secre
   }
   $station_id = variable_get('pbs_passport_station_id');
 
-  $client = new PbsMvaultClient($key, $secret, $station_id, $environment);
+  $client = new PbsPassportMvaultClient($key, $secret, $station_id, $environment);
 
   return $client;
 }
@@ -892,13 +892,13 @@ function pbs_passport_get_mvault_client($environment = NULL, $key = NULL, $secre
 /**
  * Create an OAuth2 client instance.
  *
- * @return PbsLaasClient
- *   A PbsLaasClient instance.
+ * @return PbsPassportLaasClient
+ *   A PbsPassportLaasClient instance.
  *
- * @see PbsLaasClient()
+ * @see PbsPassportLaasClient()
  */
 function pbs_passport_get_laas_client() {
-  module_load_include('inc', 'pbs_passport', 'classes/PbsLaasClient');
+  module_load_include('inc', 'pbs_passport', 'classes/PbsPassportLaasClient');
 
   $args = array(
     'client_id' => variable_get('pbs_passport_oauth_client_id'),
@@ -907,7 +907,7 @@ function pbs_passport_get_laas_client() {
     'redirect_uri' => PBS_PASSPORT_REDIRECT_URI,
   );
 
-  $client = new PbsLaasClient($args);
+  $client = new PbsPassportLaasClient($args);
 
   return $client;
 }

@@ -15,7 +15,7 @@
  * @url https://www.beargroup.com/
  * @url https://docs.pbs.org/display/MV
  */
-class PbsMvaultClient {
+class PbsPassportMvaultClient {
 
   /**
    * Membership vault production base address.
@@ -67,7 +67,7 @@ class PbsMvaultClient {
   private $authString;
 
   /**
-   * PbsMvaultClient constructor.
+   * PbsPassportMvaultClient constructor.
    *
    * @param string $client_id
    *   Client ID for API connection.

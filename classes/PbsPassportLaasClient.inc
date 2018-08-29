@@ -16,7 +16,7 @@
  * @url https://www.beargroup.com/
  * @url https://docs.pbs.org/display/MV/Custom+Implementation
  */
-class PbsLaasClient {
+class PbsPassportLaasClient {
 
   /**
    * ID for client authentication.
@@ -47,7 +47,7 @@ class PbsLaasClient {
   private $redirectUri;
 
   /**
-   * PbsLaasClient constructor.
+   * PbsPassportLaasClient constructor.
    *
    * @param array $args
    *   Arguments for the class:

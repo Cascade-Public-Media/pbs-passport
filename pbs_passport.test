@@ -174,7 +174,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
   }
 
   /**
-   * Test the PbsLaasClient() class.
+   * Test the PbsPassportLaasClient() class.
    *
    * Because we cannot actually establish an API connection, these tests are
    * very limited.
@@ -185,8 +185,8 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
     // Create client instance.
     $client = pbs_passport_get_laas_client();
     $this->assertTrue(
-      $client instanceof PbsLaasClient,
-      'PbsLaasClient created successfully.',
+      $client instanceof PbsPassportLaasClient,
+      'PbsPassportLaasClient created successfully.',
       $group
     );
 
@@ -207,7 +207,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
   }
 
   /**
-   * Test the PbsMvaultClient() class.
+   * Test the PbsPassportMvaultClient() class.
    *
    * Because we cannot actually establish an API connection, these tests are
    * very limited.
@@ -218,14 +218,14 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
     // Create client instance.
     $client = pbs_passport_get_mvault_client();
     $this->assertTrue(
-      $client instanceof PbsMvaultClient,
-      'PbsMvaultClient created successfully.',
+      $client instanceof PbsPassportMvaultClient,
+      'PbsPassportMvaultClient created successfully.',
       $group
     );
 
     // Login provider normalization.
     $method = self::getMethod(
-      'PbsMvaultClient',
+      'PbsPassportMvaultClient',
       'normalizeLoginProvider'
     );
     $data = array('pbs_profile' => array('login_provider' => ''));
@@ -249,7 +249,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
 
     // Activation URL generation.
     $method = self::getMethod(
-      'PbsMvaultClient',
+      'PbsPassportMvaultClient',
       'addActivationUrl'
     );
     $data = array('token' => NULL);
@@ -266,7 +266,7 @@ class PbsPassportUnitTestCase extends DrupalUnitTestCase {
 
     // Membership state determination.
     $method = self::getMethod(
-      'PbsMvaultClient',
+      'PbsPassportMvaultClient',
       'addMembershipState'
     );
     $data = array(
