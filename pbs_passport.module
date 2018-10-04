@@ -379,6 +379,10 @@ function pbs_passport_tokens($type, $tokens, $data = [], $options = []) {
 /**
  * Render Passport login page.
  *
+ * Cache is prevented for this page in order to ensure a session is established
+ * and random state variable generated for verification of the OAuth2
+ * authorization process.
+ *
  * @return string
  *   Themed page HTML for anonymous users.
  *
@@ -387,6 +391,7 @@ function pbs_passport_tokens($type, $tokens, $data = [], $options = []) {
  * @throws \Exception
  */
 function pbs_passport_login() {
+  drupal_page_is_cacheable(FALSE);
   $html = '';
   if (user_is_anonymous()) {
     $_SESSION['pbs_passport_login'] = [];
