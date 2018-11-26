@@ -440,18 +440,16 @@ function pbs_passport_user_debug() {
 function pbs_passport_authenticate() {
   $path = '/';
 
-  if (isset($_GET['code']) && isset($_GET['state'])) {
+  if (isset($_SESSION['pbs_passport_login'])
+    && isset($_GET['code']) && isset($_GET['state'])) {
     // Verify the state parameter.
-    if (!isset($_SESSION['pbs_passport_login']['state'])
-      || $_SESSION['pbs_passport_login']['state'] != $_GET['state']) {
-
-      if (!isset($_SESSION['pbs_passport_login']['state'])) {
-        $session_state = t('(empty)');
-      }
-      else {
-        $session_state = $_SESSION['pbs_passport_login']['state'];
-      }
-
+    if (!isset($_SESSION['pbs_passport_login']['state'])) {
+      $session_state = t('(empty)');
+    }
+    else {
+      $session_state = $_SESSION['pbs_passport_login']['state'];
+    }
+    if ($session_state != $_GET['state']) {
       watchdog(
         'pbs_passport',
         'OAuth2 state mismatch. Potential CSRF attempt!
@@ -480,7 +478,6 @@ function pbs_passport_authenticate() {
   }
 
   drupal_goto($path);
-  exit;
 }
 
 /**
