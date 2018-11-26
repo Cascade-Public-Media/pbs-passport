@@ -367,7 +367,8 @@ class PbsPassportMvaultClient {
    */
   private function normalizeLoginProvider(array &$data) {
     $provider_string = NULL;
-    if (!empty($data) && !empty($data['pbs_profile'])) {
+    if (!empty($data) && !empty($data['pbs_profile'])
+      && isset($data['pbs_profile']['login_provider'])) {
       $provider_string = drupal_strtolower(trim(
         $data['pbs_profile']['login_provider']
       ));
