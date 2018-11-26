@@ -444,14 +444,20 @@ function pbs_passport_authenticate() {
     // Verify the state parameter.
     if (!isset($_SESSION['pbs_passport_login']['state'])
       || $_SESSION['pbs_passport_login']['state'] != $_GET['state']) {
+
+      if (!isset($_SESSION['pbs_passport_login']['state'])) {
+        $session_state = t('(empty)');
+      }
+      else {
+        $session_state = $_SESSION['pbs_passport_login']['state'];
+      }
+
       watchdog(
         'pbs_passport',
-        'OAuth2 state mismatch. Potential CSRF attempt! @session_state
-          != @get_state',
-        [
-          '@session_state' => $_SESSION['pbs_passport_login']['state'],
-          '@get_state' => $_GET['state'],
-        ],
+        'OAuth2 state mismatch. Potential CSRF attempt!
+            <br/>Session: <code>@session_state</code>
+            <br/>Parameter: <code>@param_state</code>',
+        ['@session_state' => $session_state, '@param_state' => $_GET['state']],
         WATCHDOG_ALERT
       );
     }
